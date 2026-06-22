@@ -1,4 +1,5 @@
 
+using Core.Interfaces;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,7 @@ namespace Skinet
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -17,8 +18,10 @@ namespace Skinet
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
             });
+            builder.Services.AddScoped<IProductRepository, ProductRepository>();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -35,6 +38,18 @@ namespace Skinet
 
             app.MapControllers();
 
+            try
+                {
+                    using var scope = app.Services.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<StoreContext>();
+                    await context.Database.MigrateAsync();
+                    await StoreContextSeed.SeedAsync(context);
+                }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
             app.Run();
         }
     }
